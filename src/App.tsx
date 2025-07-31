@@ -40,15 +40,6 @@ const timeStringToSeconds = (timeStr: string): number => {
   return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
 };
 
-// 초를 시간 문자열로 변환 (HH:MM:SS 형식)
-const secondsToTimeString = (seconds: number): string => {
-  if (seconds === 0) return '';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-};
-
 // 근무시간 계산 함수 개선 (초 단위) - HR 시스템 방식으로 수정
 const calculateWorkTime = (startTime: string, endTime: string, dayIndex: number, isHolidayOverride: boolean = false): number => {
   if (!startTime || !endTime) return 0;
@@ -222,7 +213,7 @@ function App() {
     }
   }, [data, isInitialized]);
 
-  const updateDayData = (week: 'week1' | 'week2', day: string, field: keyof DayData, value: any) => {
+  const updateDayData = (week: 'week1' | 'week2', day: string, field: keyof DayData, value: unknown) => {
     setData(prev => {
       const newData = { ...prev };
       const dayIndex = DAYS.indexOf(day);
@@ -257,7 +248,7 @@ function App() {
               dayData.startTime,
               dayData.endTime,
               dayIndex,
-              value
+              !!value
             );
             newData[week][day].workMinutes = calculatedWorkTime;
           }
@@ -266,21 +257,6 @@ function App() {
 
       return newData;
     });
-  };
-
-  // 조식/석식 휴게시간 체크 시 자동으로 기본값 설정
-  const handleBreakChange = (week: 'week1' | 'week2', day: string, breakType: 'breakfastBreak' | 'dinnerBreak', checked: boolean) => {
-    if (checked) {
-      // 체크되면 기본 30분 설정
-      const minutesField = breakType === 'breakfastBreak' ? 'breakfastBreakMinutes' : 'dinnerBreakMinutes';
-      updateDayData(week, day, breakType, true);
-      updateDayData(week, day, minutesField, 30);
-    } else {
-      // 체크 해제되면 0분으로 설정
-      const minutesField = breakType === 'breakfastBreak' ? 'breakfastBreakMinutes' : 'dinnerBreakMinutes';
-      updateDayData(week, day, breakType, false);
-      updateDayData(week, day, minutesField, 0);
-    }
   };
 
   const calculateDayWorkTime = (dayData: DayData, dayIndex: number): { actualWork: number, ot: number } => {
@@ -474,6 +450,7 @@ function App() {
       setBulkInputMode(null);
       toast.success(`데이터가 성공적으로 입력되었습니다!`);
     } catch (error) {
+      console.error(error)
       toast.error('데이터 파싱에 실패했습니다. 형식을 확인해주세요.');
     }
   };
