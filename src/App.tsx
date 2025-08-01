@@ -8,7 +8,7 @@ interface DayData {
   workMinutes: number;
   otMinutes: number;
   nonWorkMinutes: number;
-  vacation: 'none' | 'full' | 'half' | 'quarter';
+  vacation: 'none' | 'full' | 'half' | 'quarter' | '8h'; // 근태항목 (연차, 반차, 반반차, 기타)
   breakfastBreak: boolean;
   dinnerBreak: boolean;
   breakfastBreakMinutes: number; // 조식 휴게시간 (분)
@@ -54,10 +54,7 @@ const calculateWorkTime = (startTime: string, endTime: string, dayIndex: number,
   const isHoliday = isWeekend(dayIndex) || isHolidayOverride;
 
   if (isHoliday) {
-    // 휴일: 4시간 이상 시 30분 휴게시간만 제외
-    if (totalSeconds >= 4 * 3600) {
-      totalSeconds -= 30 * 60;
-    }
+    // 휴일: 휴게시간 차감 없이 전체 시간 인정
     return Math.max(0, totalSeconds);
   } else {
     // 평일: HR 시스템 방식으로 휴게시간 계산
@@ -79,13 +76,13 @@ const calculateWorkTime = (startTime: string, endTime: string, dayIndex: number,
 };
 
 // HR 시스템 데이터 파싱 함수 개선
-const parseHRData = (hrData: string): { startTime: string, endTime: string, vacation: 'none' | 'full' | 'half' | 'quarter', nonWorkMinutes: number }[] => {
+const parseHRData = (hrData: string): { startTime: string, endTime: string, vacation: 'none' | 'full' | 'half' | 'quarter' | '8h', nonWorkMinutes: number }[] => {
   const lines = hrData.trim().split('\n').filter(line => line.trim());
   return lines.map(line => {
     const parts = line.trim().split(/\s+/);
     let startTime = '';
     let endTime = '';
-    let vacation: 'none' | 'full' | 'half' | 'quarter' = 'none';
+    let vacation: 'none' | 'full' | 'half' | 'quarter' | '8h' = 'none';
     let nonWorkMinutes = 0;
 
     // 근태항목이 있는 경우: (휴가)연차, (휴가)반차, (휴가)반반차, 기타
@@ -97,7 +94,7 @@ const parseHRData = (hrData: string): { startTime: string, endTime: string, vaca
       if (vacationStr === '(휴가)연차') vacation = 'full';
       else if (vacationStr === '(휴가)반차') vacation = 'half';
       else if (vacationStr === '(휴가)반반차') vacation = 'quarter';
-      else vacation = 'none'; // 기타 근태항목은 none으로 처리(추후 확장 가능)
+      else vacation = '8h'; // 기타 근태항목은 8시간 근태 처리
       nonWorkMinutes = parseInt(parts[3]) || 0;
     } else {
       // 근태항목이 없는 일반 케이스
@@ -113,10 +110,11 @@ const parseHRData = (hrData: string): { startTime: string, endTime: string, vaca
 };
 
 const VACATION_HOURS = {
-  none: 8, // 기타 근태 항목은 8시간으로 처리
+  none: 0,
   full: 8 * 60, // 8시간을 분으로
   half: 4 * 60, // 4시간을 분으로
-  quarter: 2 * 60 // 2시간을 분으로
+  quarter: 2 * 60, // 2시간을 분으로
+  '8h': 8 * 60, // 기타 근태 항목은 8시간으로 처리
 };
 
 function App() {
@@ -282,7 +280,7 @@ function App() {
           [field]: value
         };
 
-        // 휴일 체크박스가 변경되면 근무시간 재계산
+        // 휴일 체크박스가 변경되면 근무시간 재계산 및 관련 값 초기화
         if (field === 'isHoliday') {
           const dayData = newData[week][day];
           if (dayData.startTime && dayData.endTime) {
@@ -293,6 +291,13 @@ function App() {
               !!value
             );
             newData[week][day].workMinutes = calculatedWorkTime;
+          }
+          // 휴일로 변경 시 근태항목, 조식, 석식, 비업무시간 초기화
+          if (value === true) {
+            newData[week][day].vacation = 'none';
+            newData[week][day].breakfastBreak = false;
+            newData[week][day].dinnerBreak = false;
+            newData[week][day].nonWorkMinutes = 0;
           }
         }
       }
@@ -339,8 +344,8 @@ function App() {
     const isHoliday = isWeekend(dayIndex) || dayData.isHoliday;
 
     if (isHoliday) {
-      // 휴일: 모든 시간이 OT (1시간 단위로 계산)
-      ot = Math.floor(actualWorkMinutes / 60) * 60;
+      // 휴일: 모든 근무시간을 10분 단위로 OT로 계산
+      ot = Math.floor(actualWorkMinutes / 10) * 10;
     } else {
       // 평일: 8시간 초과 시 OT 계산 (10분 단위)
       if (actualWorkMinutes > 8 * 60) {
@@ -671,9 +676,9 @@ function App() {
                   <th>근태항목</th>
                   <th>조식</th>
                   <th>석식</th>
-                  <th>비업무시간(시스템+개인)</th>
+                  <th>비업무시간<br/>(시스템+개인)</th>
                   <th>휴일</th>
-                  <th>실제근무</th>
+                  <th>근무시간</th>
                   <th>OT시간</th>
                   <th>OT신청시간</th>
                 </tr>
@@ -684,17 +689,19 @@ function App() {
                   const { actualWork, ot } = calculateDayWorkTime(dayData, dayIndex);
 
                   // 토요일, 일요일은 자동으로 휴일 표시
-                  const isAutoHoliday = isWeekend(dayIndex);
+                  const isWeekendDay = isWeekend(dayIndex);
+                  // 휴일 여부
+                  const isHoliday = dayData.isHoliday || isWeekendDay;
                   // 휴일이거나 평일 휴일 근무인 경우 연차 선택 불가
-                  const canSelectVacation = !isAutoHoliday && !dayData.isHoliday;
+                  const canControlWT = !isHoliday;
                   // 근태항목(연차, 반차, 반반차) 여부
                   const hasVacation = dayData.vacation !== 'none';
 
                   return (
-                    <tr key={day} className={isAutoHoliday ? 'weekend-row' : ''}>
+                    <tr key={day} className={isWeekendDay ? 'weekend-row' : ''}>
                       <td className="day-cell">
+                        {isHoliday && <span className="weekend-indicator">🏖️</span>}
                         {day}
-                        {isAutoHoliday && <span className="weekend-indicator">🏖️</span>}
                       </td>
                       <td>
                         <input
@@ -719,13 +726,14 @@ function App() {
                           value={dayData.vacation}
                           onChange={(e) => updateDayData(weekKey, day, 'vacation', e.target.value)}
                           className="vacation-select"
-                          disabled={!canSelectVacation}
-                          title={!canSelectVacation ? '휴일에는 근태항목을 선택할 수 없습니다' : ''}
+                          disabled={!canControlWT}
+                          title={!canControlWT ? '근태항목을 선택할 수 없습니다' : ''}
                         >
                           <option value="none">없음</option>
                           <option value="full">연차</option>
                           <option value="half">반차</option>
                           <option value="quarter">반반차</option>
+                          <option value="8h">기타(8시간)</option>
                         </select>
                       </td>
                       <td className="break-time-cell">
@@ -737,6 +745,7 @@ function App() {
                             updateDayData(weekKey, day, 'nonWorkMinutes', dayData.nonWorkMinutes + (e.target.checked ? 30 : -30));
                           }}
                           className="checkbox-input"
+                          disabled={isHoliday}
                         />
                       </td>
                       <td className="break-time-cell">
@@ -748,6 +757,7 @@ function App() {
                             updateDayData(weekKey, day, 'nonWorkMinutes', dayData.nonWorkMinutes + (e.target.checked ? 30 : -30));
                           }}
                           className="checkbox-input"
+                          disabled={isHoliday}
                         />
                       </td>
                       <td>
@@ -760,6 +770,7 @@ function App() {
                             updateDayData(weekKey, day, 'nonWorkMinutes', minutes);
                           }}
                           className="time-input"
+                          disabled={isHoliday}
                         />
                       </td>
                       <td>
@@ -768,8 +779,8 @@ function App() {
                           checked={dayData.isHoliday}
                           onChange={(e) => updateDayData(weekKey, day, 'isHoliday', e.target.checked)}
                           className="checkbox-input"
-                          disabled={isAutoHoliday}
-                          title={isAutoHoliday ? '토요일, 일요일은 자동으로 휴일입니다' : ''}
+                          disabled={isWeekendDay}
+                          title={isWeekendDay ? '토요일, 일요일은 자동으로 휴일입니다' : ''}
                         />
                       </td>
                       <td className="result-cell">{formatTime(actualWork)}</td>
@@ -805,11 +816,21 @@ function App() {
         <details>
           <summary>계산 규칙 보기</summary>
           <ul>
-            <li>일 최소 체류시간: 4시간 30분 (근무시간 4시간 + 휴게시간 30분)</li>
-            <li>4시간 근무 시 30분 휴게시간 자동 제외</li>
-            <li>평일: 8시간 초과 시 10분 단위로 OT 계산</li>
-            <li>휴일: 1시간 단위로 OT 계산</li>
-            <li>OT는 1시간 이상 근무한 경우에만 인정</li>
+            <li>
+              평일
+              <ul>
+                <li>일 최소 체류시간: 4시간 30분 (근무시간 4시간 + 휴게시간 30분)</li>
+                <li>4시간 근무 시 30분 휴게시간 자동 제외</li>
+                <li>일 근무시간이 9시간을 초과하는 경우 10분 단위로 OT 계산</li>
+              </ul>
+            </li>
+            <li>
+              휴일
+              <ul>
+                <li>휴게시간 차감 없음</li>
+                <li>10분 단위로 OT 계산</li>
+              </ul>
+            </li>
             <li>2주 합산 최소 80시간, 최대 104시간 근무</li>
             <li>연차 8시간, 반차 4시간, 반반차 2시간 근무시간 인정</li>
             <li>조식/석식 체크 시 각각 30분 비업무시간 추가</li>
