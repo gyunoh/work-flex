@@ -2,7 +2,7 @@
   "name": "work-flex",
   "version": "0.0.0",
   "private": true,
-  "homepage": "https://gyunoh.github.io/WorkFlex",
+  "homepage": "https://gyunoh.github.io/work-flex",
   "type": "module",
   "scripts": {
     "dev": "vite",
