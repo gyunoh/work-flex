@@ -22,6 +22,7 @@ h1 {
   justify-content: center;
   gap: 15px;
   margin-bottom: 30px;
+  margin-top: 30px; /* 상단 타일과 버튼 사이 간격 추가 */
 }
 
 .share-btn, .reset-btn {
@@ -529,4 +530,21 @@ h1 {
 .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* URL 복사 모달의 복사하기 버튼 스타일 */
+.modal-copy-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-copy-btn:hover {
+  background-color: #45a049;
 }

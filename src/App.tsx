@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import './App.css';
 
@@ -79,32 +79,41 @@ const calculateWorkTime = (startTime: string, endTime: string, dayIndex: number,
 };
 
 // HR 시스템 데이터 파싱 함수 개선
-const parseHRData = (hrData: string): { startTime: string, endTime: string, systemBreak: number, manualBreak: number }[] => {
+const parseHRData = (hrData: string): { startTime: string, endTime: string, vacation: 'none' | 'full' | 'half' | 'quarter', nonWorkMinutes: number }[] => {
   const lines = hrData.trim().split('\n').filter(line => line.trim());
-
   return lines.map(line => {
     const parts = line.trim().split(/\s+/);
-    if (parts.length >= 3) {
-      const startTime = parts[0] || '';
-      const endTime = parts[1] || '';
-      // parts[2]는 빈칸 또는 휴게시간 값
-      const breakTime = parseInt(parts[2]) || 0;
-      // 추가 휴게시간이 있다면 parts[3]에서 가져오기
-      const additionalBreak = parseInt(parts[3]) || 0;
+    let startTime = '';
+    let endTime = '';
+    let vacation: 'none' | 'full' | 'half' | 'quarter' = 'none';
+    let nonWorkMinutes = 0;
 
-      return {
-        startTime,
-        endTime,
-        systemBreak: breakTime,
-        manualBreak: additionalBreak
-      };
+    // 근태항목이 있는 경우: (휴가)연차, (휴가)반차, (휴가)반반차, 기타
+    // 예시: 07:22:23 08:05:55 (휴가)반반차 0
+    if (parts.length >= 3 && parts[2].startsWith('(휴가)')) {
+      startTime = parts[0] || '';
+      endTime = parts[1] || '';
+      const vacationStr = parts[2];
+      if (vacationStr === '(휴가)연차') vacation = 'full';
+      else if (vacationStr === '(휴가)반차') vacation = 'half';
+      else if (vacationStr === '(휴가)반반차') vacation = 'quarter';
+      else vacation = 'none'; // 기타 근태항목은 none으로 처리(추후 확장 가능)
+      nonWorkMinutes = parseInt(parts[3]) || 0;
+    } else {
+      // 근태항목이 없는 일반 케이스
+      startTime = parts[0] || '';
+      endTime = parts[1] || '';
+      // parts[2]와 parts[3]는 휴게시간(시스템/수기)
+      const break1 = parseInt(parts[2]) || 0;
+      const break2 = parseInt(parts[3]) || 0;
+      nonWorkMinutes = break1 + break2;
     }
-    return { startTime: '', endTime: '', systemBreak: 0, manualBreak: 0 };
+    return { startTime, endTime, vacation, nonWorkMinutes };
   });
 };
 
 const VACATION_HOURS = {
-  none: 0,
+  none: 8, // 기타 근태 항목은 8시간으로 처리
   full: 8 * 60, // 8시간을 분으로
   half: 4 * 60, // 4시간을 분으로
   quarter: 2 * 60 // 2시간을 분으로
@@ -142,23 +151,36 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 컴포넌트 마운트 시 한 번만 실행되는 초기화
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const dataParam = urlParams.get('data');
-
-    if (dataParam) {
-      // URL에서 데이터 로드
+    // URL 해시에서 데이터 복원 시도
+    let hashData: TwoWeekData | null = null;
+    let hashValid = false;
+    if (window.location.hash.startsWith('#!data=')) {
       try {
-        const decodedData = JSON.parse(decodeURIComponent(dataParam));
-        setData(decodedData);
-        toast.success('URL에서 데이터가 로드되었습니다!');
+        const hashStr = decodeURIComponent(window.location.hash.replace('#!data=', ''));
+        hashData = JSON.parse(hashStr);
+        // hashData 형태 검증
+        if (
+          hashData &&
+          typeof hashData === 'object' &&
+          'week1' in hashData &&
+          'week2' in hashData &&
+          typeof hashData.week1 === 'object' &&
+          typeof hashData.week2 === 'object'
+        ) {
+          hashValid = true;
+          setData(hashData);
+          localStorage.setItem('work-flex-data', JSON.stringify(hashData));
+          toast.success('URL 해시에서 데이터가 로드되었습니다!');
+        }
       } catch (error) {
-        console.error('URL 데이터를 읽는데 실패했습니다:', error);
-        toast.error('URL 데이터를 읽는데 실패했습니다.');
+        console.error('URL 해시 데이터를 읽는데 실패했습니다:', error);
       }
-    } else {
+    }
+    if (!hashValid) {
       // 로컬 스토리지에서 데이터 복원
       const savedData = localStorage.getItem('work-flex-data');
       if (savedData) {
@@ -186,7 +208,6 @@ function App() {
                 isHoliday: false,
                 ...savedDayData,
               };
-              // 새로 추가된 필드들이 undefined인 경우 기본값 설정
               if (mergedData[weekKey][day].breakfastBreakMinutes === undefined) {
                 mergedData[weekKey][day].breakfastBreakMinutes = 0;
               }
@@ -196,22 +217,43 @@ function App() {
             }
           }
           setData(mergedData);
+          // URL 해시도 동기화
+          window.location.hash = `!data=${encodeURIComponent(JSON.stringify(mergedData))}`;
           toast.success('저장된 데이터를 불러왔습니다!');
         } catch (error) {
           console.error('저장된 데이터 복원 실패:', error);
         }
       }
     }
-
     setIsInitialized(true);
   }, []); // 빈 의존성 배열로 한 번만 실행
 
   // 데이터 변경 시 자동 저장 (초기화 완료 후에만)
   useEffect(() => {
     if (isInitialized) {
+      const encoded = encodeURIComponent(JSON.stringify(data));
+      window.location.hash = `!data=${encoded}`;
       localStorage.setItem('work-flex-data', JSON.stringify(data));
     }
   }, [data, isInitialized]);
+
+  // 해시 변경 시 데이터 동기화
+  useEffect(() => {
+    const onHashChange = () => {
+      if (window.location.hash.startsWith('#!data=')) {
+        try {
+          const hashStr = decodeURIComponent(window.location.hash.replace('#!data=', ''));
+          const hashData = JSON.parse(hashStr);
+          setData(hashData);
+          localStorage.setItem('work-flex-data', JSON.stringify(hashData));
+        } catch (e) {
+          console.error('해시 데이터 파싱 실패:', e);
+        }
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const updateDayData = (week: 'week1' | 'week2', day: string, field: keyof DayData, value: unknown) => {
     setData(prev => {
@@ -365,15 +407,31 @@ function App() {
     };
   };
 
+  const openModal = (url: string) => {
+    setModalContent(url);
+    setIsModalOpen(true);
+    setTimeout(() => {
+      inputRef.current?.select();
+    }, 100);
+  };
+
   const shareData = () => {
     try {
-        const encodedData = encodeURIComponent(JSON.stringify(data));
-        const url = `${window.location.origin}${window.location.pathname}?data=${encodedData}`;
-        setModalContent(url);
-        setIsModalOpen(true);
+      const encodedData = encodeURIComponent(JSON.stringify(data));
+      const url = `${window.location.origin}${window.location.pathname}#!data=${encodedData}`;
+      openModal(url);
     } catch (error) {
-        console.error('공유 데이터 생성 실패:', error);
-        toast.error('공유 데이터를 생성하는데 실패했습니다.');
+      console.error('URL 데이터 생성 실패:', error);
+      toast.error('URL을 생성하는데 실패했습니다.');
+    }
+  };
+
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(modalContent);
+      toast.success('URL이 복사되었습니다!');
+    } catch {
+      toast.error('클립보드 복사에 실패했습니다.');
     }
   };
 
@@ -381,6 +439,8 @@ function App() {
     if (confirm('모든 데이터를 초기화하시겠습니까?')) {
       // 로컬 스토리지 완전 삭제
       localStorage.removeItem('work-flex-data');
+      // URL 해시도 삭제
+      history.replaceState(null, '', window.location.pathname);
       // 페이지 새로고침으로 완전 초기화
       window.location.reload();
     }
@@ -423,26 +483,20 @@ function App() {
 
     try {
       const parsedData = parseHRData(bulkInputText);
-
       setData(prev => {
         const newData = { ...prev };
-
         parsedData.forEach((dayInfo, index) => {
           if (index < DAYS.length && (dayInfo.startTime || dayInfo.endTime)) {
             const day = DAYS[index];
-
-            // 시스템 휴게시간과 수기 휴게시간을 합산하여 비업무시간으로 처리
-            const totalBreakTime = dayInfo.systemBreak + dayInfo.manualBreak;
-
             newData[weekKey][day] = {
               ...newData[weekKey][day],
               startTime: dayInfo.startTime,
               endTime: dayInfo.endTime,
-              nonWorkMinutes: totalBreakTime
+              vacation: dayInfo.vacation,
+              nonWorkMinutes: dayInfo.nonWorkMinutes
             };
           }
         });
-
         return newData;
       });
 
@@ -463,11 +517,6 @@ function App() {
     <div className="app">
       <Toaster position="top-right" />
       <h1>2주 단위 자율출퇴근제 근무시간 계산기</h1>
-
-      <div className="controls">
-        <button onClick={shareData} className="share-btn">📤 URL로 저장하기</button>
-        <button onClick={resetData} className="reset-btn">🔄 초기화</button>
-      </div>
 
       <div className="stats-summary">
         <div className="stats-row">
@@ -506,6 +555,11 @@ function App() {
         </div>
       </div>
 
+      <div className="controls">
+        <button onClick={shareData} className="share-btn">📤 URL 복사하기</button>
+        <button onClick={resetData} className="reset-btn">🔄 초기화</button>
+      </div>
+
       {/* 주간별 테이블 형식 입력 */}
       {(['week1', 'week2'] as const).map((weekKey, weekIndex) => (
         <div key={weekKey} className="week-section">
@@ -516,7 +570,7 @@ function App() {
                 onClick={() => setBulkInputMode(weekKey)}
                 className="bulk-input-btn"
               >
-                📋 HR시스템 데이터 붙여넣기
+                📋 HR 데이터 붙여넣기
               </button>
             </div>
           </div>
@@ -525,14 +579,64 @@ function App() {
           {bulkInputMode === weekKey && (
             <div className="bulk-input-modal">
               <div className="bulk-input-content">
-                <h3>HR시스템 데이터 일괄 입력</h3>
-                <p>HR시스템에서 복사한 데이터를 붙여넣으세요:</p>
+                <h3>HR 데이터 입력</h3>
+                <p>HR 개인출퇴근현황(본사/판교) 화면에서 인정출근시간~비업무시간-개인 셀을 붙여넣으세요.</p>
                 <div className="bulk-input-example">
-                  <strong>예시 형식:</strong><br/>
-                  07:38:28  18:26:37    0<br/>
-                  07:38:19  19:58:23    30<br/>
-                  07:27:58  17:35:21    0<br/>
-                  (출근시간 퇴근시간 근태항목 시스템휴게시간 수기휴게시간)
+                  <strong>예시:</strong><br/>
+                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px', margin: '10px 0'}}>
+                    <thead>
+                      <tr style={{background: '#f0f0f0'}}>
+                        <th style={{border: '1px solid #ddd', padding: '4px'}}>인정출근시간</th>
+                        <th style={{border: '1px solid #ddd', padding: '4px'}}>인정퇴근시간</th>
+                        <th style={{border: '1px solid #ddd', padding: '4px'}}>일일근태</th>
+                        <th style={{border: '1px solid #ddd', padding: '4px'}}>비업무시간<br/>시스템</th>
+                        <th style={{border: '1px solid #ddd', padding: '4px'}}>비업무시간<br/>개인</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>08:20:22</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>17:32:12</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>30</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                      </tr>
+                      <tr>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>07:28:30</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>18:26:53</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>30</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                      </tr>
+                      <tr>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>07:28:46</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>17:29:16</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>0</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>30</td>
+                      </tr>
+                      <tr>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>08:14:40</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>18:28:54</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>30</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                      </tr>
+                      <tr>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>07:22:23</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>13:03:55</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}>(휴가)반차</td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                        <td style={{border: '1px solid #ddd', padding: '4px'}}></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div style={{fontSize: '12px', color: '#666', marginTop: '8px'}}>
+                    <span>
+                      ※ 최대 1주 단위까지만 적용 가능합니다.<br/>
+                      ※ 근태항목은 (휴가)연차, (휴가)반차, (휴가)반반차 외에는 기타로 적용되며, 근무시간은 8시간으로 계산됩니다.
+                    </span>
+                  </div>
                 </div>
                 <textarea
                   value={bulkInputText}
@@ -581,7 +685,7 @@ function App() {
 
                   // 토요일, 일요일은 자동으로 휴일 표시
                   const isAutoHoliday = isWeekend(dayIndex);
-                  // 휴일이거나 평일 휴일근무인 경우 연차 선택 불가
+                  // 휴일이거나 평일 휴일 근무인 경우 연차 선택 불가
                   const canSelectVacation = !isAutoHoliday && !dayData.isHoliday;
                   // 근태항목(연차, 반차, 반반차) 여부
                   const hasVacation = dayData.vacation !== 'none';
@@ -717,16 +821,18 @@ function App() {
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>URL로 저장하기</h3>
-            <p>아래 URL을 사용하여 다른 곳에서도 데이터를 유지할 수 있습니다.</p>
+            <h3>URL 복사하기</h3>
+            <p>아래 URL을 복사해서 다른 곳에서도 데이터를 유지할 수 있습니다.</p>
             <input
               type="text"
+              ref={inputRef}
               readOnly
               value={modalContent}
               className="modal-input"
-              onFocus={(e) => e.target.select()}
+              onFocus={e => e.target.select()}
               style={{ width: '100%', marginBottom: '20px' }}
             />
+            <button onClick={handleCopyUrl} className="modal-copy-btn" style={{ marginRight: 8 }}>복사하기</button>
             <button onClick={closeModal} className="modal-close-btn">닫기</button>
           </div>
         </div>
