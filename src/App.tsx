@@ -149,6 +149,8 @@ function normalizeTimeInput(input: string): string {
   }
 }
 
+const isValidTime = (t: unknown) => typeof t === 'string' && t.length === 4 && /^\d{4}$/.test(t);
+
 function App() {
   const [data, setData] = useState<TwoWeekData>(() => {
     const initialDay: DayData = {
@@ -296,8 +298,8 @@ function App() {
       // 출근시간이나 퇴근시간이 변경되면 자동으로 근무시간 계산
       if (field === 'startTime' || field === 'endTime') {
         const updatedDay = { ...newData[week][day], [field]: value };
-
-        if (updatedDay.startTime && updatedDay.endTime) {
+        // 출근/퇴근시간이 모두 4자리 숫자(예: 0930)일 때만 근무시간 계산
+        if (isValidTime(updatedDay.startTime) && isValidTime(updatedDay.endTime)) {
           const calculatedWorkTime = calculateWorkTime(
             updatedDay.startTime,
             updatedDay.endTime,
@@ -306,10 +308,9 @@ function App() {
           );
           updatedDay.workMinutes = calculatedWorkTime;
         } else {
-          // 출근 또는 퇴근시간이 없으면 근무시간 초기화
+          // 입력 중이거나 값이 없으면 근무시간 0으로 초기화
           updatedDay.workMinutes = 0;
         }
-
         newData[week][day] = updatedDay;
       } else {
         // 다른 필드 업데이트
@@ -561,16 +562,17 @@ function App() {
       <Toaster position="top-right" />
       <h1>2주 단위 자율출퇴근제 근무시간 계산기</h1>
 
-      {isMobile ? (
-        <div className="stats-expander">
-          <button
-            className="stats-expander-btn"
-            onClick={() => setStatsOpen(o => !o)}
-            aria-expanded={statsOpen}
-          >
-            {statsOpen ? '▲ 근무/OT 요약 접기' : '▼ 근무/OT 요약 펼치기'}
-          </button>
-          {statsOpen && (
+      <div className={isMobile ? "stats-expander" : "stats-summary"}>
+        {isMobile && (
+            <button
+                className="stats-expander-btn"
+                onClick={() => setStatsOpen(o => !o)}
+                aria-expanded={statsOpen}
+            >
+              {statsOpen ? '▲ 근무/OT 요약 접기' : '▼ 근무/OT 요약 펼치기'}
+            </button>
+        )}
+        {(!isMobile || statsOpen) && (
             <div className="stats-summary">
               <div className="stats-row">
                 <div className="stat-card">
@@ -607,46 +609,8 @@ function App() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="stats-summary">
-          <div className="stats-row">
-            <div className="stat-card">
-              <h3>총 근무시간</h3>
-              <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#2196F3' }}>
-                {formatTime(stats.totalWork)}
-              </p>
-            </div>
-            <div className="stat-card">
-              <h3>최소 근무시간 기준 남은 시간</h3>
-              <p style={{ color: stats.totalWork < 80 * 60 ? '#f44336' : '#4CAF50' }}>
-                {formatTime(Math.max(0, 80 * 60 - stats.totalWork))}
-              </p>
-            </div>
-            <div className="stat-card">
-              <h3>최대 근무시간 기준 남은 시간</h3>
-              <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#4CAF50' }}>
-                {formatTime(Math.max(0, 104 * 60 - stats.totalWork))}
-              </p>
-            </div>
-          </div>
-          <div className="stats-row">
-            <div className="stat-card">
-              <h3>OT시간</h3>
-              <p>{formatTime(stats.totalOT)}</p>
-            </div>
-            <div className="stat-card">
-              <h3>OT신청시간</h3>
-              <p>{formatTime(stats.totalRequestedOT)}</p>
-            </div>
-            <div className="stat-card">
-              <h3>OT인정시간</h3>
-              <p>{formatTime(stats.totalApprovedOT)}</p>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 주간별 테이블 형식 입력 */}
       {(['week1', 'week2'] as const).map((weekKey, weekIndex) => (
