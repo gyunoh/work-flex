@@ -127,6 +127,28 @@ function useIsMobile() {
   return isMobile;
 }
 
+// 시간 입력값을 HH:MM:SS로 자동 변환하는 함수
+function normalizeTimeInput(input: string): string {
+  const cleaned = input.replace(/[^0-9]/g, '');
+  if (!cleaned) return '';
+  if (cleaned.length <= 2) {
+    // 1~2자리: 시간만 입력
+    return cleaned.padStart(2, '0') + ':00:00';
+  } else if (cleaned.length === 3) {
+    // 3자리: HMM
+    return '0' + cleaned[0] + ':' + cleaned.slice(1) + ':00';
+  } else if (cleaned.length === 4) {
+    // 4자리: HHMM
+    return cleaned.slice(0, 2) + ':' + cleaned.slice(2) + ':00';
+  } else if (cleaned.length === 6) {
+    // 6자리: HHMMSS
+    return cleaned.slice(0, 2) + ':' + cleaned.slice(2, 4) + ':' + cleaned.slice(4, 6);
+  } else {
+    // 그 외: 앞 2자리-다음 2자리-나머지
+    return cleaned.slice(0, 2) + ':' + cleaned.slice(2, 4) + ':' + cleaned.slice(4).padEnd(2, '0');
+  }
+}
+
 function App() {
   const [data, setData] = useState<TwoWeekData>(() => {
     const initialDay: DayData = {
@@ -162,6 +184,7 @@ function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   const [statsOpen, setStatsOpen] = useState(false);
+  const [isNonWorkMinutesFocused, setIsNonWorkMinutesFocused] = useState<{[key: string]: {[key: string]: boolean}}>({});
 
   // 컴포넌트 마운트 시 한 번만 실행되는 초기화
   useEffect(() => {
@@ -765,7 +788,15 @@ function App() {
                           type="text"
                           placeholder="07:30:00"
                           value={dayData.startTime}
-                          onChange={(e) => updateDayData(weekKey, day, 'startTime', e.target.value)}
+                          onChange={(e) => {
+                            updateDayData(weekKey, day, 'startTime', e.target.value);
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            if (/^\d{1,6}$/.test(val)) {
+                              updateDayData(weekKey, day, 'startTime', normalizeTimeInput(val));
+                            }
+                          }}
                           className="time-input"
                         />
                       </td>
@@ -774,7 +805,15 @@ function App() {
                           type="text"
                           placeholder="18:30:00"
                           value={dayData.endTime}
-                          onChange={(e) => updateDayData(weekKey, day, 'endTime', e.target.value)}
+                          onChange={(e) => {
+                            updateDayData(weekKey, day, 'endTime', e.target.value);
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            if (/^\d{1,6}$/.test(val)) {
+                              updateDayData(weekKey, day, 'endTime', normalizeTimeInput(val));
+                            }
+                          }}
                           className="time-input"
                         />
                       </td>
@@ -820,10 +859,36 @@ function App() {
                       <td>
                         <input
                           type="text"
-                          placeholder="0:30"
-                          value={dayData.nonWorkMinutes > 0 ? convertMinutesToTimeString(dayData.nonWorkMinutes) : ''}
+                          placeholder="30"
+                          value={isNonWorkMinutesFocused[weekKey]?.[day]
+                            ? (dayData.nonWorkMinutes > 0 ? dayData.nonWorkMinutes.toString() : '')
+                            : (dayData.nonWorkMinutes > 0 ? convertMinutesToTimeString(dayData.nonWorkMinutes) : '')}
+                          onFocus={() => {
+                            setIsNonWorkMinutesFocused(prev => ({
+                              ...prev,
+                              [weekKey]: {
+                                ...(prev[weekKey] || {}),
+                                [day]: true
+                              }
+                            }));
+                          }}
+                          onBlur={() => {
+                            setIsNonWorkMinutesFocused(prev => ({
+                              ...prev,
+                              [weekKey]: {
+                                ...(prev[weekKey] || {}),
+                                [day]: false
+                              }
+                            }));
+                          }}
                           onChange={(e) => {
-                            const minutes = convertTimeStringToMinutes(e.target.value);
+                            const value = e.target.value;
+                            let minutes = 0;
+                            if (isNonWorkMinutesFocused[weekKey]?.[day]) {
+                              minutes = Number(value) || 0;
+                            } else {
+                              minutes = convertTimeStringToMinutes(value);
+                            }
                             updateDayData(weekKey, day, 'nonWorkMinutes', minutes);
                           }}
                           className="time-input"
