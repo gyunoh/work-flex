@@ -305,6 +305,9 @@ function App() {
             updatedDay.isHoliday
           );
           updatedDay.workMinutes = calculatedWorkTime;
+        } else {
+          // 출근 또는 퇴근시간이 없으면 근무시간 초기화
+          updatedDay.workMinutes = 0;
         }
 
         newData[week][day] = updatedDay;
