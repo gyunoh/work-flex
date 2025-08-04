@@ -98,7 +98,7 @@ h1 {
 
 /* 주별 섹션 */
 .week-section {
-  margin-top: 50px; /* 상단 타일과 1주차 영역 간격 추가 */
+  margin-top: 30px;
   margin-bottom: 50px;
 }
 
@@ -444,7 +444,39 @@ h1 {
   font-style: italic;
 }
 
-/* 반응형 디자인 */
+/* 통계 확장기능 스타일 */
+.stats-expander {
+  margin-bottom: 18px;
+}
+
+.stats-expander-btn {
+  width: 100%;
+  background: linear-gradient(90deg, #2196F3 0%, #4CAF50 100%);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 0;
+  box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  margin-bottom: 8px;
+}
+
+.stats-expander-btn:hover {
+  background: linear-gradient(90deg, #1976D2 0%, #388E3C 100%);
+  box-shadow: 0 4px 16px rgba(33,150,243,0.12);
+}
+
+.stats-summary {
+  transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.3s;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(33,150,243,0.07);
+  background: none;
+  padding: 10px 8px;
+}
+
 @media (max-width: 1200px) {
   .work-table {
     font-size: 12px;
@@ -476,11 +508,29 @@ h1 {
     font-size: 1.5rem;
   }
 
-  .days-grid {
-    grid-template-columns: 1fr;
+  .stats-summary {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 15px;
   }
 
-  .stats-summary {
+  .stats-row {
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .stat-card {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 18px;
+    margin: 0 auto;
+  }
+
+  .days-grid {
     grid-template-columns: 1fr;
   }
 
@@ -514,6 +564,23 @@ h1 {
   .bulk-input-content {
     padding: 20px;
     width: 95%;
+  }
+
+  .stats-expander {
+    margin-bottom: 12px;
+  }
+  .stats-expander-btn {
+    font-size: 1rem;
+    padding: 10px 0;
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+  .stats-summary {
+    padding: 8px 4px;
+    box-shadow: 0 1px 6px rgba(33,150,243,0.06);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: none;
   }
 }
 

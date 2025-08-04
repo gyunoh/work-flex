@@ -117,6 +117,16 @@ const VACATION_HOURS = {
   '8h': 8 * 60, // 기타 근태 항목은 8시간으로 처리
 };
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return isMobile;
+}
+
 function App() {
   const [data, setData] = useState<TwoWeekData>(() => {
     const initialDay: DayData = {
@@ -150,6 +160,8 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
+  const [statsOpen, setStatsOpen] = useState(false);
 
   // 컴포넌트 마운트 시 한 번만 실행되는 초기화
   useEffect(() => {
@@ -523,47 +535,92 @@ function App() {
       <Toaster position="top-right" />
       <h1>2주 단위 자율출퇴근제 근무시간 계산기</h1>
 
-      <div className="stats-summary">
-        <div className="stats-row">
-          <div className="stat-card">
-            <h3>총 근무시간</h3>
-            <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#2196F3' }}>
-              {formatTime(stats.totalWork)}
-            </p>
+      {isMobile ? (
+        <div className="stats-expander">
+          <button
+            className="stats-expander-btn"
+            onClick={() => setStatsOpen(o => !o)}
+            aria-expanded={statsOpen}
+          >
+            {statsOpen ? '▲ 근무/OT 요약 접기' : '▼ 근무/OT 요약 펼치기'}
+          </button>
+          {statsOpen && (
+            <div className="stats-summary">
+              <div className="stats-row">
+                <div className="stat-card">
+                  <h3>총 근무시간</h3>
+                  <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#2196F3' }}>
+                    {formatTime(stats.totalWork)}
+                  </p>
+                </div>
+                <div className="stat-card">
+                  <h3>최소 근무시간 기준 남은 시간</h3>
+                  <p style={{ color: stats.totalWork < 80 * 60 ? '#f44336' : '#4CAF50' }}>
+                    {formatTime(Math.max(0, 80 * 60 - stats.totalWork))}
+                  </p>
+                </div>
+                <div className="stat-card">
+                  <h3>최대 근무시간 기준 남은 시간</h3>
+                  <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#4CAF50' }}>
+                    {formatTime(Math.max(0, 104 * 60 - stats.totalWork))}
+                  </p>
+                </div>
+              </div>
+              <div className="stats-row">
+                <div className="stat-card">
+                  <h3>OT시간</h3>
+                  <p>{formatTime(stats.totalOT)}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>OT신청시간</h3>
+                  <p>{formatTime(stats.totalRequestedOT)}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>OT인정시간</h3>
+                  <p>{formatTime(stats.totalApprovedOT)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="stats-summary">
+          <div className="stats-row">
+            <div className="stat-card">
+              <h3>총 근무시간</h3>
+              <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#2196F3' }}>
+                {formatTime(stats.totalWork)}
+              </p>
+            </div>
+            <div className="stat-card">
+              <h3>최소 근무시간 기준 남은 시간</h3>
+              <p style={{ color: stats.totalWork < 80 * 60 ? '#f44336' : '#4CAF50' }}>
+                {formatTime(Math.max(0, 80 * 60 - stats.totalWork))}
+              </p>
+            </div>
+            <div className="stat-card">
+              <h3>최대 근무시간 기준 남은 시간</h3>
+              <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#4CAF50' }}>
+                {formatTime(Math.max(0, 104 * 60 - stats.totalWork))}
+              </p>
+            </div>
           </div>
-          <div className="stat-card">
-            <h3>최소 근무시간 기준 남은 시간</h3>
-            <p style={{ color: stats.totalWork < 80 * 60 ? '#f44336' : '#4CAF50' }}>
-              {formatTime(Math.max(0, 80 * 60 - stats.totalWork))}
-            </p>
-          </div>
-          <div className="stat-card">
-            <h3>최대 근무시간 기준 남은 시간</h3>
-            <p style={{ color: stats.totalWork > 104 * 60 ? '#f44336' : '#4CAF50' }}>
-              {formatTime(Math.max(0, 104 * 60 - stats.totalWork))}
-            </p>
+          <div className="stats-row">
+            <div className="stat-card">
+              <h3>OT시간</h3>
+              <p>{formatTime(stats.totalOT)}</p>
+            </div>
+            <div className="stat-card">
+              <h3>OT신청시간</h3>
+              <p>{formatTime(stats.totalRequestedOT)}</p>
+            </div>
+            <div className="stat-card">
+              <h3>OT인정시간</h3>
+              <p>{formatTime(stats.totalApprovedOT)}</p>
+            </div>
           </div>
         </div>
-        <div className="stats-row">
-          <div className="stat-card">
-            <h3>OT시간</h3>
-            <p>{formatTime(stats.totalOT)}</p>
-          </div>
-          <div className="stat-card">
-            <h3>OT신청시간</h3>
-            <p>{formatTime(stats.totalRequestedOT)}</p>
-          </div>
-          <div className="stat-card">
-            <h3>OT인정시간</h3>
-            <p>{formatTime(stats.totalApprovedOT)}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="controls">
-        <button onClick={shareData} className="share-btn">📤 URL 복사하기</button>
-        <button onClick={resetData} className="reset-btn">🔄 초기화</button>
-      </div>
+      )}
 
       {/* 주간별 테이블 형식 입력 */}
       {(['week1', 'week2'] as const).map((weekKey, weekIndex) => (
@@ -811,6 +868,11 @@ function App() {
           </div>
         </div>
       ))}
+
+      <div className="controls">
+        <button onClick={shareData} className="share-btn">📤 URL 복사하기</button>
+        <button onClick={resetData} className="reset-btn">🔄 초기화</button>
+      </div>
 
       <div className="rules">
         <details>
