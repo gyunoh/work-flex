@@ -875,7 +875,7 @@ function App() {
                       </td>
                       <td className="result-cell">{formatTime(actualWork)}</td>
                       <td className="result-cell ot-cell">
-                        {!hasVacation && ot <= 0 ? '' : (hasVacation || (ot < 60 && ot > 0) ? '신청불가' : `${formatTime(ot)} (${ot}분)`)}
+                        {!hasVacation && ot <= 0 ? '' : (hasVacation || (ot < 60 && ot > 0) ? '신청불가' : (<>{formatTime(ot)}<br/>({ot}분)</>))}
                       </td>
                       <td>
                         <input

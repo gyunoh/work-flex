@@ -267,6 +267,7 @@ h1 {
   text-align: center;
   font-size: 13px;
   white-space: nowrap;
+  min-width: 60px;
 }
 
 .work-table td {
@@ -274,6 +275,57 @@ h1 {
   border-bottom: 1px solid #eee;
   text-align: center;
   vertical-align: middle;
+  min-width: 60px;
+}
+
+.work-table th.day-col, .work-table td.day-cell {
+  width: 50px;
+  min-width: 50px;
+}
+
+.work-table th.start-col, .work-table td.start-col {
+  width: 90px;
+  min-width: 90px;
+}
+
+.work-table th.end-col, .work-table td.end-col {
+  width: 90px;
+  min-width: 90px;
+}
+
+.work-table th.vacation-col, .work-table td.vacation-col {
+  width: 80px;
+  min-width: 80px;
+}
+
+.work-table th.break-col, .work-table td.break-time-cell {
+  width: 50px;
+  min-width: 50px;
+}
+
+.work-table th.nonwork-col, .work-table td.nonwork-col {
+  width: 80px;
+  min-width: 80px;
+}
+
+.work-table th.holiday-col, .work-table td.holiday-col {
+  width: 50px;
+  min-width: 50px;
+}
+
+.work-table th.worktime-col, .work-table td.result-cell {
+  width: 90px;
+  min-width: 90px;
+}
+
+.work-table th.ot-col, .work-table td.ot-cell {
+  width: 90px;
+  min-width: 90px;
+}
+
+.work-table th.otreq-col, .work-table td.otreq-col {
+  width: 90px;
+  min-width: 90px;
 }
 
 .work-table tbody tr:hover {
