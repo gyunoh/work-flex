@@ -112,10 +112,17 @@ const parseHRData = (hrData: string): { startTime: string, endTime: string, vaca
 
 const VACATION_HOURS = {
   none: 0,
-  full: 8 * 60, // 8시간을 분으로
-  half: 4 * 60, // 4시간을 분으로
-  quarter: 2 * 60, // 2시간을 분으로
-  '8h': 8 * 60, // 기타 근태 항목은 8시간으로 처리
+  full: 8 * 60,
+  half: 4 * 60,
+  quarter: 2 * 60,
+  '1h': 1 * 60,
+  '2h': 2 * 60,
+  '3h': 3 * 60,
+  '4h': 4 * 60,
+  '5h': 5 * 60,
+  '6h': 6 * 60,
+  '7h': 7 * 60,
+  '8h': 8 * 60,
 };
 
 function useIsMobile() {
@@ -797,6 +804,13 @@ function App() {
                           <option value="full">연차</option>
                           <option value="half">반차</option>
                           <option value="quarter">반반차</option>
+                          <option value="1h">기타(1시간)</option>
+                          <option value="2h">기타(2시간)</option>
+                          <option value="3h">기타(3시간)</option>
+                          <option value="4h">기타(4시간)</option>
+                          <option value="5h">기타(5시간)</option>
+                          <option value="6h">기타(6시간)</option>
+                          <option value="7h">기타(7시간)</option>
                           <option value="8h">기타(8시간)</option>
                         </select>
                       </td>
