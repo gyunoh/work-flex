@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "vite build",
-    "deploy": "gh-pages -d dist --message \"Deploy v$npm_package_version\" && git tag v$npm_package_version-$(date +%Y%m%d) && git push origin v$npm_package_version-$(date +%Y%m%d)"
+    "deploy": "gh-pages -d dist --message \"Deploy v$npm_package_version\" && export TAG=v$npm_package_version-$(date +%Y%m%d%H%M%S) && git tag $TAG && git push origin $TAG"
   },
   "dependencies": {
     "date-fns": "^4.1.0",
