@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import './App.css';
+import pkg from '../package.json';
 
 interface DayData {
   startTime: string; // 출근시간 (HH:MM:SS 형식)
@@ -952,6 +953,14 @@ function App() {
           </div>
         </div>
       )}
+      {/* 페이지 좌하단에 버전 정보 */}
+      <div className="footer-version left">
+        {pkg.name} v{pkg.version}
+      </div>
+      {/* 페이지 우하단에 개발자 정보 */}
+      <div className="footer-version right">
+        Developed by Gyunoh Lee
+      </div>
     </div>
   );
 }
