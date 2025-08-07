@@ -503,16 +503,16 @@ function App() {
     }, 100);
   };
 
-  const shareData = () => {
-    try {
-      const encodedData = encodeURIComponent(JSON.stringify(data));
-      const url = `${window.location.origin}${window.location.pathname}#!data=${encodedData}`;
-      openModal(url);
-    } catch (error) {
-      console.error('URL 데이터 생성 실패:', error);
-      toast.error('URL을 생성하는데 실패했습니다.');
-    }
-  };
+  // const shareData = () => {
+  //   try {
+  //     const encodedData = encodeURIComponent(JSON.stringify(data));
+  //     const url = `${window.location.origin}${window.location.pathname}#!data=${encodedData}`;
+  //     openModal(url);
+  //   } catch (error) {
+  //     console.error('URL 데이터 생성 실패:', error);
+  //     toast.error('URL을 생성하는데 실패했습니다.');
+  //   }
+  // };
 
   const handleCopyUrl = async () => {
     try {
