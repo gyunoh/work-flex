@@ -198,77 +198,113 @@ function App() {
 
   // 컴포넌트 마운트 시 한 번만 실행되는 초기화
   useEffect(() => {
-    // URL 해시에서 데이터 복원 시도
-    let hashData: TwoWeekData | null = null;
-    let hashValid = false;
-    if (window.location.hash.startsWith('#!data=')) {
-      try {
-        const hashStr = decodeURIComponent(window.location.hash.replace('#!data=', ''));
-        hashData = JSON.parse(hashStr);
-        // hashData 형태 검증
-        if (
-          hashData &&
-          typeof hashData === 'object' &&
-          'week1' in hashData &&
-          'week2' in hashData &&
-          typeof hashData.week1 === 'object' &&
-          typeof hashData.week2 === 'object'
-        ) {
-          hashValid = true;
-          setData(hashData);
-          localStorage.setItem('work-flex-data', JSON.stringify(hashData));
-          toast.success('URL 해시에서 데이터가 로드되었습니다!');
-        }
-      } catch (error) {
-        console.error('URL 해시 데이터를 읽는데 실패했습니다:', error);
-      }
-    }
-    if (!hashValid) {
-      // 로컬 스토리지에서 데이터 복원
+    let isInit: boolean = isInitialized;
+
+    if (!isInit) {
+      // 로컬 스토리지에서 데이터 복원 시도
       const savedData = localStorage.getItem('work-flex-data');
       if (savedData) {
         try {
           const parsed = JSON.parse(savedData);
-          const mergedData: TwoWeekData = {
-            week1: {},
-            week2: {}
-          };
-
-          for (const weekKey of ['week1', 'week2'] as const) {
-            for (const day of DAYS) {
-              const savedDayData = parsed[weekKey]?.[day];
-              mergedData[weekKey][day] = {
-                startTime: '',
-                endTime: '',
-                workMinutes: 0,
-                otMinutes: 0,
-                nonWorkMinutes: 0,
-                vacation: 'none',
-                breakfastBreak: false,
-                dinnerBreak: false,
-                breakfastBreakMinutes: 0,
-                dinnerBreakMinutes: 0,
-                isHoliday: false,
-                ...savedDayData,
-              };
-              if (mergedData[weekKey][day].breakfastBreakMinutes === undefined) {
-                mergedData[weekKey][day].breakfastBreakMinutes = 0;
-              }
-              if (mergedData[weekKey][day].dinnerBreakMinutes === undefined) {
-                mergedData[weekKey][day].dinnerBreakMinutes = 0;
+          if (
+              parsed &&
+              typeof parsed === 'object' &&
+              'week1' in parsed &&
+              'week2' in parsed &&
+              typeof parsed.week1 === 'object' &&
+              typeof parsed.week2 === 'object'
+          ) {
+            // 데이터 병합
+            const mergedData: TwoWeekData = {week1: {}, week2: {}};
+            for (const weekKey of ['week1', 'week2'] as const) {
+              for (const day of DAYS) {
+                const savedDayData = parsed[weekKey]?.[day];
+                mergedData[weekKey][day] = {
+                  startTime: '',
+                  endTime: '',
+                  workMinutes: 0,
+                  otMinutes: 0,
+                  nonWorkMinutes: 0,
+                  vacation: 'none',
+                  breakfastBreak: false,
+                  dinnerBreak: false,
+                  breakfastBreakMinutes: 0,
+                  dinnerBreakMinutes: 0,
+                  isHoliday: false,
+                  ...savedDayData,
+                };
+                if (mergedData[weekKey][day].breakfastBreakMinutes === undefined) {
+                  mergedData[weekKey][day].breakfastBreakMinutes = 0;
+                }
+                if (mergedData[weekKey][day].dinnerBreakMinutes === undefined) {
+                  mergedData[weekKey][day].dinnerBreakMinutes = 0;
+                }
               }
             }
+            setData(mergedData);
+            window.location.hash = `!data=${encodeURIComponent(JSON.stringify(mergedData))}`;
+            toast.success('저장된 데이터를 불러왔습니다!');
+            isInit = true;
           }
-          setData(mergedData);
-          // URL 해시도 동기화
-          window.location.hash = `!data=${encodeURIComponent(JSON.stringify(mergedData))}`;
-          toast.success('저장된 데이터를 불러왔습니다!');
         } catch (error) {
-          console.error('저장된 데이터 복원 실패:', error);
+          console.error('로컬 스토리지 데이터 복원 실패:', error);
         }
       }
     }
-    setIsInitialized(true);
+
+    if (!isInit) {
+      // URL 해시에서 복원 시도
+      if (window.location.hash.startsWith('#!data=')) {
+        try {
+          const hashStr = decodeURIComponent(window.location.hash.replace('#!data=', ''));
+          const hashData = JSON.parse(hashStr);
+          if (
+              hashData &&
+              typeof hashData === 'object' &&
+              'week1' in hashData &&
+              'week2' in hashData &&
+              typeof hashData.week1 === 'object' &&
+              typeof hashData.week2 === 'object'
+          ) {
+            setData(hashData);
+            localStorage.setItem('work-flex-data', JSON.stringify(hashData));
+            toast.success('URL 해시에서 데이터가 로드되었습니다!');
+            isInit = true;
+          }
+        } catch (error) {
+          console.error('URL 해시 데이터를 읽는데 실패했습니다:', error);
+        }
+      }
+    }
+
+    if (!isInit) {
+      // 초기 데이터 설정
+      const initialData: TwoWeekData = {
+        week1: {},
+        week2: {}
+      };
+      for (const weekKey of ['week1', 'week2'] as const) {
+        for (const day of DAYS) {
+          initialData[weekKey][day] = {
+            startTime: '',
+            endTime: '',
+            workMinutes: 0,
+            otMinutes: 0,
+            nonWorkMinutes: 0,
+            vacation: 'none',
+            breakfastBreak: false,
+            dinnerBreak: false,
+            breakfastBreakMinutes: 0,
+            dinnerBreakMinutes: 0,
+            isHoliday: false
+          };
+        }
+      }
+      setData(initialData);
+      isInit = true;
+    }
+
+    setIsInitialized(isInit);
   }, []); // 빈 의존성 배열로 한 번만 실행
 
   // 데이터 변경 시 자동 저장 (초기화 완료 후에만)
@@ -917,7 +953,7 @@ function App() {
       ))}
 
       <div className="controls">
-        <button onClick={shareData} className="share-btn">📤 URL 복사하기</button>
+        {/*<button onClick={shareData} className="share-btn">📤 URL 복사하기</button>*/}
         <button onClick={resetData} className="reset-btn">🔄 초기화</button>
       </div>
 
