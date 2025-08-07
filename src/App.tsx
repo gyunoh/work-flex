@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import './App.css';
 import pkg from '../package.json';
@@ -189,9 +189,9 @@ function App() {
   const [bulkInputMode, setBulkInputMode] = useState<'week1' | 'week2' | null>(null);
   const [bulkInputText, setBulkInputText] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalContent, setModalContent] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  // const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [modalContent, setModalContent] = useState('');
+  // const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
   const [statsOpen, setStatsOpen] = useState(false);
   const [isNonWorkMinutesFocused, setIsNonWorkMinutesFocused] = useState<{[key: string]: {[key: string]: boolean}}>({});
@@ -495,13 +495,13 @@ function App() {
     };
   };
 
-  const openModal = (url: string) => {
-    setModalContent(url);
-    setIsModalOpen(true);
-    setTimeout(() => {
-      inputRef.current?.select();
-    }, 100);
-  };
+  // const openModal = (url: string) => {
+  //   setModalContent(url);
+  //   setIsModalOpen(true);
+  //   setTimeout(() => {
+  //     inputRef.current?.select();
+  //   }, 100);
+  // };
 
   // const shareData = () => {
   //   try {
@@ -514,14 +514,14 @@ function App() {
   //   }
   // };
 
-  const handleCopyUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(modalContent);
-      toast.success('URL이 복사되었습니다!');
-    } catch {
-      toast.error('클립보드 복사에 실패했습니다.');
-    }
-  };
+  // const handleCopyUrl = async () => {
+  //   try {
+  //     await navigator.clipboard.writeText(modalContent);
+  //     toast.success('URL이 복사되었습니다!');
+  //   } catch {
+  //     toast.error('클립보드 복사에 실패했습니다.');
+  //   }
+  // };
 
   const resetData = () => {
     if (confirm('모든 데이터를 초기화하시겠습니까?')) {
@@ -597,9 +597,9 @@ function App() {
     }
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  // const closeModal = () => {
+  //   setIsModalOpen(false);
+  // };
 
   return (
     <div className="app">
@@ -984,25 +984,25 @@ function App() {
         </details>
       </div>
 
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>URL 복사하기</h3>
-            <p>아래 URL을 복사해서 다른 곳에서도 데이터를 유지할 수 있습니다.</p>
-            <input
-              type="text"
-              ref={inputRef}
-              readOnly
-              value={modalContent}
-              className="modal-input"
-              onFocus={e => e.target.select()}
-              style={{ width: '100%', marginBottom: '20px' }}
-            />
-            <button onClick={handleCopyUrl} className="modal-copy-btn" style={{ marginRight: 8 }}>복사하기</button>
-            <button onClick={closeModal} className="modal-close-btn">닫기</button>
-          </div>
-        </div>
-      )}
+      {/*{isModalOpen && (*/}
+      {/*  <div className="modal-overlay">*/}
+      {/*    <div className="modal-content">*/}
+      {/*      <h3>URL 복사하기</h3>*/}
+      {/*      <p>아래 URL을 복사해서 다른 곳에서도 데이터를 유지할 수 있습니다.</p>*/}
+      {/*      <input*/}
+      {/*        type="text"*/}
+      {/*        ref={inputRef}*/}
+      {/*        readOnly*/}
+      {/*        value={modalContent}*/}
+      {/*        className="modal-input"*/}
+      {/*        onFocus={e => e.target.select()}*/}
+      {/*        style={{ width: '100%', marginBottom: '20px' }}*/}
+      {/*      />*/}
+      {/*      <button onClick={handleCopyUrl} className="modal-copy-btn" style={{ marginRight: 8 }}>복사하기</button>*/}
+      {/*      <button onClick={closeModal} className="modal-close-btn">닫기</button>*/}
+      {/*    </div>*/}
+      {/*  </div>*/}
+      {/*)}*/}
       {/* 페이지 좌하단에 버전 정보 */}
       <div className="footer-version left">
         {pkg.name} v{pkg.version}
